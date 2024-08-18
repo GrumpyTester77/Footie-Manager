@@ -1,4 +1,5 @@
 import Managers
+import random
 
 teams = [
     'Arsenal',
@@ -24,6 +25,7 @@ teams = [
 ]
 
 
+
 def add_managers_to_team():
         team_managers = {teams[i]: Managers.managers[i] for i in range(len(teams))}
         return team_managers
@@ -34,3 +36,12 @@ def append_team_managers(team, manager):
         team_manager_dictionary.update({team:manager})
         print(team_manager_dictionary)
         return team_manager_dictionary
+
+def get_opposition_manager():
+        opposition_manager = random.choice(list(team_manager_dictionary.items()))
+        return opposition_manager
+
+def get_opposition_team(opposition_manager):
+        for club, manager in team_manager_dictionary.items():
+                if manager == opposition_manager:
+                        return club
