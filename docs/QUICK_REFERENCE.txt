@@ -1,0 +1,435 @@
+"""
+QUICK REFERENCE: USING THE PATTERNS IN YOUR CODE
+==================================================
+"""
+
+print("""
+╔════════════════════════════════════════════════════════════════════════════╗
+║                      QUICK START GUIDE                                    ║
+║                 How to Use Each Pattern                                   ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+1️⃣  MODELS - Create Objects Instead of Dictionaries
+════════════════════════════════════════════════════════════════════════════
+
+Creating Teams:
+───────────────
+from models import Team, Manager
+
+# Create objects with relationships
+manager = Manager("Mikel Arteta")
+team = Team("Arsenal", manager)
+team.add_player(player)
+
+# Access properties
+print(team.name)           # "Arsenal"
+print(team.manager.name)   # "Mikel Arteta"
+print(team.get_squad())    # ["Player1", "Player2", ...]
+
+
+2️⃣  SINGLETON - GameManager for Central State
+════════════════════════════════════════════════════════════════════════════
+
+Accessing Game State:
+─────────────────────
+from gamemanager import GameManager
+
+# Always same instance, anywhere in code
+game = GameManager()
+
+# Team management
+teams = game.get_all_teams()
+team = game.get_team_by_name("Arsenal")
+game.set_user_team("Arsenal", "My Manager")
+
+# Manager management
+managers = game.get_all_managers()
+manager = game.get_manager_by_name("Mikel Arteta")
+game.add_manager("New Manager")
+
+# Player data
+positions = game.get_player_positions()
+position = game.get_player_position("Harry Kane")
+players = game.get_players_for_team("Arsenal")
+
+# Repository access
+repo = game.get_player_repository()
+
+
+3️⃣  REPOSITORY - Data Abstraction
+════════════════════════════════════════════════════════════════════════════
+
+Using the Repository:
+─────────────────────
+from repositories import RepositoryFactory
+
+# Get the best available data source (auto-detects DB or CSV)
+repo = RepositoryFactory.create_player_repository()
+
+# Use it to get data
+players = repo.get_players_by_team("Arsenal")
+positions = repo.get_player_positions()
+team = repo.get_team_for_player("Harry Kane")
+
+# Swapping data sources (when ready to use database):
+# In repositories.py, RepositoryFactory.create_player_repository():
+# Change: data_source = CSVDataSource()
+# To:     data_source = DatabaseDataSource()
+# Everything else works unchanged!
+
+
+4️⃣  FACTORY - Create Objects Safely
+═════════════════════════════════════════════════════════════════════════════
+
+Creating Teams:
+───────────────
+from factories import TeamFactory
+
+# Safe creation with validation
+team = TeamFactory.create("Arsenal", "Mikel Arteta")
+
+# Get existing team from GameManager
+team = TeamFactory.create_from_gamemanager("Arsenal")
+
+# Get all teams
+teams = TeamFactory.create_all_from_gamemanager()
+
+
+Creating Managers:
+──────────────────
+from factories import ManagerFactory
+
+manager = ManagerFactory.create("New Manager")
+manager = ManagerFactory.create_from_gamemanager("Existing Manager")
+
+
+Creating Players:
+─────────────────
+from factories import PlayerFactory
+
+player = PlayerFactory.create("Harry Kane", "FW", team=arsenal)
+# Valid positions: GK, DF, MF, FW
+# Invalid positions raise ValueError
+
+
+Creating Matches:
+─────────────────
+from factories import MatchFactory
+
+# Simple match
+match = MatchFactory.create(arsenal, liverpool)
+
+# Match with squads
+match = MatchFactory.create(arsenal, liverpool, 
+                           home_squad=squad1, 
+                           away_squad=squad2)
+
+# Match with strategy
+from strategies import RandomMatchStrategy
+strategy = RandomMatchStrategy()
+match = MatchFactory.create(arsenal, liverpool, strategy=strategy)
+
+# Match with squads auto-selected from GameManager
+match = MatchFactory.create_with_squads("Arsenal", "Liverpool")
+
+# Auto-select squads with strategy
+strategy = QuickPlayStrategy()
+match = MatchFactory.create_with_squads("Arsenal", "Liverpool", 
+                                       strategy=strategy)
+
+
+5️⃣  STRATEGY - Pluggable Match Simulations
+════════════════════════════════════════════════════════════════════════════
+
+Using Existing Strategies:
+──────────────────────────
+from strategies import (
+    RandomMatchStrategy,
+    QuickPlayStrategy,
+    StrategyFactory
+)
+from factories import MatchFactory
+
+# By factory name
+strategy = StrategyFactory.create("random")    # Full random match
+strategy = StrategyFactory.create("quick")     # 5-min quick play
+strategy = StrategyFactory.create("realistic") # Future: stats-based
+strategy = StrategyFactory.create("ai_medium") # Future: AI opponent
+
+# Direct instantiation
+strategy = RandomMatchStrategy(match_duration=10, sleep_time=2)
+strategy = QuickPlayStrategy(match_duration=5, sleep_time=0)
+
+# Create match with strategy
+match = MatchFactory.create(arsenal, liverpool, strategy=strategy)
+
+# Simulate
+match.simulate()
+print(match.get_result())
+
+
+Changing Strategy at Runtime:
+─────────────────────────────
+match = MatchFactory.create(arsenal, liverpool)
+
+# User wants quick match instead
+match.set_strategy(QuickPlayStrategy())
+match.simulate()
+
+
+Creating Custom Strategy:
+─────────────────────────
+from strategies import MatchSimulationStrategy
+
+class MyCustomStrategy(MatchSimulationStrategy):
+    def simulate(self, match):
+        print(f"Simulating {match.home_team.name} vs {match.away_team.name}")
+        # Your simulation logic here
+        for _ in range(5):  # 5 cycles
+            # Update match state
+            match.record_goal(match.home_team.name)
+        print(match.get_result())
+    
+    def get_name(self):
+        return "My Custom Strategy"
+
+# Use it
+strategy = MyCustomStrategy()
+match = MatchFactory.create(arsenal, liverpool, strategy=strategy)
+match.simulate()
+
+
+═══════════════════════════════════════════════════════════════════════════
+COMMON WORKFLOWS
+═══════════════════════════════════════════════════════════════════════════
+
+Workflow 1: Setup Game with User
+──────────────────────────────────
+from gamemanager import GameManager
+from factories import TeamFactory, ManagerFactory
+import HumanPlayer
+
+# User enters their info
+user_name = input("Your name: ")
+user_team = input("Team: ")
+
+# Use patterns
+game = GameManager()
+manager = ManagerFactory.create(user_name)
+team = TeamFactory.create(user_team, user_name)
+game.set_user_team(user_team, user_name)
+
+
+Workflow 2: Create and Simulate Match
+───────────────────────────────────────
+from factories import MatchFactory
+from strategies import QuickPlayStrategy
+from gamemanager import GameManager
+
+game = GameManager()
+
+# Get user team and opposition
+user_team = game.get_user_team()
+opp_team = get_opposition_team()  # Your function
+
+# Create match with user's preferred strategy
+user_strategy = QuickPlayStrategy()  # Or user selects
+match = MatchFactory.create(user_team, opp_team, strategy=user_strategy)
+
+# Simulate
+match.simulate()
+print(match.get_result())
+
+
+Workflow 3: Load Player Data (No Code Changes Needed)
+──────────────────────────────────────────────────────
+# Current: Uses CSV automatically
+game = GameManager()
+positions = game.get_player_positions()
+
+# Future: When database ready, just change 1 line in repositories.py
+# No changes needed here or anywhere else!
+
+# The Repository handles the switch transparently
+
+
+═══════════════════════════════════════════════════════════════════════════
+ANTI-PATTERNS TO AVOID
+═══════════════════════════════════════════════════════════════════════════
+
+❌ Don't:  team_dict = {"Arsenal": ["Player1", "Player2"]}
+✓  Do:     team = Team("Arsenal"); team.add_player(player)
+
+❌ Don't:  from Match import match_day; match_day(...)
+✓  Do:     from strategies import RandomMatchStrategy
+           match = MatchFactory.create(home, away, strategy=strategy)
+           match.simulate()
+
+❌ Don't:  global teams, global managers, global players
+✓  Do:     game = GameManager()  # Single source of truth
+
+❌ Don't:  try: data = api(); except: data = csv()  (repeated code)
+✓  Do:     repo = RepositoryFactory.create_player_repository()
+
+❌ Don't:  Match(team1, team2)  # Direct creation, no validation
+✓  Do:     MatchFactory.create(team1, team2)  # Validated
+
+❌ Don't:  if match_type == "quick": ... elif match_type == "random": ...
+✓  Do:     strategy = StrategyFactory.create(match_type)
+
+
+═══════════════════════════════════════════════════════════════════════════
+TESTING WITH PATTERNS
+═══════════════════════════════════════════════════════════════════════════
+
+Testing Factories:
+──────────────────
+def test_team_factory():
+    team = TeamFactory.create("Arsenal", "Mikel Arteta")
+    assert team.name == "Arsenal"
+    assert team.manager.name == "Mikel Arteta"
+
+def test_invalid_team():
+    with pytest.raises(ValueError):
+        TeamFactory.create("", "Manager")
+
+
+Testing with Mock Strategy:
+────────────────────────────
+from strategies import MatchSimulationStrategy
+from unittest.mock import MagicMock
+
+class DeterministicStrategy(MatchSimulationStrategy):
+    """Always produces 2-1 home win"""
+    def simulate(self, match):
+        match.record_goal(match.home_team.name)
+        match.record_goal(match.home_team.name)
+        match.record_goal(match.away_team.name)
+    
+    def get_name(self):
+        return "Test"
+
+def test_match_result():
+    strategy = DeterministicStrategy()
+    match = MatchFactory.create(arsenal, liverpool, strategy=strategy)
+    match.simulate()
+    
+    assert match.home_score == 2
+    assert match.away_score == 1
+    assert "Arsenal wins" in match.get_result()
+
+
+Testing Repository Swap:
+─────────────────────────
+from repositories import CSVDataSource, DatabaseDataSource
+
+def test_csv_source():
+    source = CSVDataSource()
+    players = source.fetch_players_by_team("Arsenal")
+    assert len(players) > 0
+
+def test_db_source():
+    # When database ready
+    source = DatabaseDataSource()
+    players = source.fetch_players_by_team("Arsenal")
+    assert len(players) > 0
+
+def test_sources_compatible():
+    csv_source = CSVDataSource()
+    db_source = DatabaseDataSource()
+    
+    # Both should return same interface
+    csv_data = csv_source.fetch_player_positions()
+    db_data = db_source.fetch_player_positions()
+    
+    # Same structure, same keys
+    assert set(csv_data.keys()) == set(db_data.keys())
+
+
+═══════════════════════════════════════════════════════════════════════════
+MIGRATION GUIDE: OLD CODE → NEW CODE
+═══════════════════════════════════════════════════════════════════════════
+
+OLD CODE:
+─────────
+import Teams
+import Match
+
+Teams.add_managers_to_team()
+team = "Arsenal"
+squad = [player_names]
+Match.match_day(team, squad, opp_manager, opp_team, opp_squad)
+
+
+NEW CODE:
+─────────
+from gamemanager import GameManager
+from factories import MatchFactory, TeamFactory
+from strategies import RandomMatchStrategy
+from PlayerTeams import get_match_day_team
+
+game = GameManager()
+team = game.get_user_team()
+opponent_team = game.get_team_by_name("Arsenal")
+
+strategy = RandomMatchStrategy()
+match = MatchFactory.create(
+    team,
+    opponent_team,
+    home_squad=get_match_day_team(team.name),
+    away_squad=get_match_day_team(opponent_team.name),
+    strategy=strategy
+)
+match.simulate()
+print(match.get_result())
+
+
+═══════════════════════════════════════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════
+
+Q: "GameManager() returns same instance"
+A: That's correct! It's a Singleton. Same instance everywhere.
+   Reset with: game.reset()
+
+Q: "Can I use CSV and Database at same time?"
+A: RepositoryFactory creates one or the other, not both.
+   To use both, create separate repositories:
+   
+   csv_repo = PlayerRepository(CSVDataSource())
+   db_repo = PlayerRepository(DatabaseDataSource())
+
+Q: "How do I add a new strategy?"
+A: Create class, implement simulate() and get_name()
+   Register: StrategyFactory._strategies["name"] = YourStrategy
+   Use: StrategyFactory.create("name")
+
+Q: "What if factory validation rejects my input?"
+A: Check error message - it will tell you what's wrong
+   ValueError is raised for invalid inputs
+   
+   Valid positions: GK, DF, MF, FW
+   Non-empty team names, manager names
+   Different home/away teams for matches
+
+Q: "Match.simulate() does nothing?"
+A: Set strategy first: match.set_strategy(strategy)
+   Or pass to factory: MatchFactory.create(..., strategy=strategy)
+
+Q: "How do I test without actual CSV file?"
+A: Use mock strategy:
+   
+   class MockStrategy(MatchSimulationStrategy):
+       def simulate(self, match):
+           match.record_goal(match.home_team.name)
+       def get_name(self):
+           return "Mock"
+   
+   match = MatchFactory.create(home, away, strategy=MockStrategy())
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+Congratulations! You now have a professional-grade, patterns-based codebase!
+""")

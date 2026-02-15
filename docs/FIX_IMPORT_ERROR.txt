@@ -1,0 +1,187 @@
+IMPORT ERROR FIX - PERMUTATION & MAIN.PY
+=========================================
+
+✓ ISSUE IDENTIFIED:
+──────────────────
+
+Error: AttributeError: module 'Teams' has no attribute 'teams'
+Location: permutation.py line 6
+
+Root Cause:
+  The refactored Teams.py no longer has a module-level `teams` list.
+  Instead, all state is managed through GameManager singleton.
+  
+  OLD CODE:
+    import Teams
+    teams = Teams.teams  # This no longer exists!
+  
+  NEW CODE:
+    from gamemanager import GameManager
+    game = GameManager()
+    teams = game.get_all_teams()
+
+
+✓ FILES FIXED:
+───────────────
+
+1. permutation.py
+   ──────────────
+   BEFORE:
+     import Teams
+     from itertools import permutations
+     
+     fixtures = []
+     teams = Teams.teams  # ✗ ERROR: 'Teams' has no attribute 'teams'
+     permutations = permutations(teams, 2)
+     # ... rest of code ...
+   
+   AFTER:
+     from gamemanager import GameManager
+     from itertools import permutations as itertools_permutations
+     
+     # Get teams from GameManager (single source of truth)
+     game = GameManager()
+     teams = game.get_all_teams()
+     
+     fixtures = []
+     match_permutations = itertools_permutations(teams, 2)
+     for matches in match_permutations:
+         fixtures.append(matches)
+     
+     # ... rest of code ...
+     weeks = split_fixtures_weekly(fixtures)
+
+2. Main.py
+   ────────
+   BEFORE:
+     fixture = permutation.game[1]  # ✗ ERROR: permutation.game is GameManager, not list
+   
+   AFTER:
+     if permutation.weeks and len(permutation.weeks) > 0:
+         fixture = permutation.weeks[0]  # ✓ First week of season
+         if fixture:
+             print(f"This week's fixtures (Week 1):")
+             for match in fixture[:2]:
+                 print(f"  {match[0]} vs {match[1]}")
+
+
+✓ VERIFICATION:
+────────────────
+
+All imports now work correctly:
+
+Test 1: permutation module
+  ✓ permutation.py imports successfully
+  ✓ Generated 380 total fixtures
+  ✓ Split into multiple weeks
+
+Test 2: Main module
+  ✓ Main.py imports successfully
+  ✓ GameManager initialized
+  ✓ 20 teams loaded from GameManager
+
+Test 3: Integration
+  ✓ All modules working together
+  ✓ No import errors
+
+
+✓ KEY PRINCIPLES APPLIED:
+──────────────────────────
+
+1. Single Source of Truth
+   ALL game data now flows through GameManager
+   No scattered state in module-level variables
+
+2. Dependency Injection
+   Modules import GameManager, not each other
+   Loose coupling between modules
+
+3. Singleton Pattern
+   GameManager() always returns same instance
+   Consistent state across entire application
+
+
+✓ BEFORE vs AFTER:
+───────────────────
+
+BEFORE (Monolithic):
+  Main.py → Teams.teams list
+         → permutation.Teams.teams list
+         → HumanPlayer.player_positions
+         
+  Problem: 3 separate state sources = inconsistency
+
+AFTER (Patterns-Based):
+  Main.py ─┐
+           ├─→ GameManager (Single Source)
+  permutation ┤    ├─ teams
+  HumanPlayer ┤    ├─ managers
+              └→   ├─ player_positions
+                   └─ repositories
+  
+  Benefit: One place to manage all state
+
+
+✓ HOW IT WORKS NOW:
+─────────────────────
+
+1. permutation.py loads (on import):
+   game = GameManager()
+   teams = game.get_all_teams()
+   # Generates fixtures using teams from GameManager
+
+2. Main.py loads (on import):
+   import permutation  # Already generated fixtures
+   
+3. When main() runs:
+   game = GameManager()  # Same singleton instance
+   game.get_user_team()  # Consistent data
+   
+4. All modules share same GameManager state
+   No duplication, no inconsistency
+
+
+✓ RESULT:
+──────────
+
+✓ main() can now run without import errors
+✓ All modules properly integrated
+✓ Single source of truth (GameManager)
+✓ Fixtures generated on startup
+✓ Ready for match simulation
+
+
+✓ NEXT STEPS:
+──────────────
+
+Now that imports are fixed, you can:
+
+1. Run Main.py:
+   python Main.py
+   
+   This will:
+   - Initialize GameManager
+   - Load teams and managers
+   - Load player positions
+   - Generate fixtures
+   - Let user select team
+   - Simulate match
+
+2. Or run test modules:
+   python test_factories.py
+   python test_strategies.py
+   
+3. Or continue development:
+   - Add new features
+   - Implement realistic strategies
+   - Add AI opponents
+   - Build database integration
+
+
+✓ SUMMARY:
+───────────
+
+Issue: Module-level `Teams.teams` no longer exists (refactored away)
+Fix: Use GameManager singleton instead
+Result: All imports work, all modules properly integrated
+Benefit: Single source of truth, proper patterns applied
